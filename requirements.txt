@@ -1,0 +1,5 @@
+numpy
+sounddevice
+openwakeword
+playwright
+python-dotenv
