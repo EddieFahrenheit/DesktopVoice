@@ -1,10 +1,8 @@
-import queue
 import time
 from pathlib import Path
 
-import numpy as np
-import sounddevice as sd
 from config import load_config
+from audio_stream import MicAudioStream
 
 try:
     from openwakeword.model import Model as WakeWordModel
@@ -12,8 +10,6 @@ try:
 except ModuleNotFoundError:
     print("Missing dependency: openwakeword. Run `pip install -r requirements.txt`.")
     raise
-import argparse
-import re
 
 try:
     from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
@@ -30,24 +26,6 @@ GEMINI_ORIGIN = "https://gemini.google.com"
 SAMPLE_RATE_HZ = 16000
 CHUNK_SECONDS = 0.48
 FRAMES_PER_CHUNK = int(SAMPLE_RATE_HZ * CHUNK_SECONDS)  # ~7680
-
-q = queue.Queue(maxsize=8)
-printed_frames = False
-
-def callback(indata, frames, time_info, status):  # noqa: ARG001
-    global printed_frames
-    if status:
-        print(f"\nAudio status: {status}", flush=True)
-
-    if not printed_frames:
-        print(f"Callback frames per block: {frames}", flush=True)
-        printed_frames = True
-
-    try:
-        q.put_nowait(indata.copy())
-    except queue.Full:
-        pass
-
 
 def main():
     cfg = load_config()
@@ -92,15 +70,9 @@ def main():
     )
 
     last_trigger = 0.0
-    with sd.InputStream(
-        samplerate=SAMPLE_RATE_HZ,
-        channels=1,
-        dtype="int16",
-        blocksize=FRAMES_PER_CHUNK,
-        callback=callback,
-    ):
+    with MicAudioStream(sample_rate_hz=SAMPLE_RATE_HZ, frames_per_chunk=FRAMES_PER_CHUNK, channels=1, dtype="int16") as mic:
         while True:
-            chunk = q.get()[:, 0]  # mono
+            chunk = mic.read()[:, 0]  # mono
             preds = model.predict(chunk)
 
             if isinstance(preds, dict) and preds:
