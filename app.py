@@ -1,11 +1,10 @@
-import os
 import queue
 import time
 from pathlib import Path
 
 import numpy as np
 import sounddevice as sd
-from dotenv import load_dotenv
+from config import load_config
 
 try:
     from openwakeword.model import Model as WakeWordModel
@@ -13,14 +12,27 @@ try:
 except ModuleNotFoundError:
     print("Missing dependency: openwakeword. Run `pip install -r requirements.txt`.")
     raise
+import argparse
+import re
 
+try:
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+    from playwright.sync_api import sync_playwright
+except ModuleNotFoundError:
+    print(
+        "Missing dependency: playwright. Run `pip install -r requirements.txt` "
+        "and (if using bundled chromium) `python -m playwright install chromium`."
+    )
+    raise
+
+GEMINI_URL = "https://gemini.google.com/"
+GEMINI_ORIGIN = "https://gemini.google.com"
 SAMPLE_RATE_HZ = 16000
 CHUNK_SECONDS = 0.48
 FRAMES_PER_CHUNK = int(SAMPLE_RATE_HZ * CHUNK_SECONDS)  # ~7680
 
 q = queue.Queue(maxsize=8)
 printed_frames = False
-
 
 def callback(indata, frames, time_info, status):  # noqa: ARG001
     global printed_frames
@@ -38,16 +50,14 @@ def callback(indata, frames, time_info, status):  # noqa: ARG001
 
 
 def main():
-    repo_dir = Path(__file__).resolve().parent
-    load_dotenv(repo_dir / ".env")
-
-    wakeword = (os.getenv("WAKEWORD") or "").strip()
-    if not wakeword:
+    cfg = load_config()
+    if not cfg.wakeword:
         print("Set WAKEWORD in .env (copy .env.example to .env).", flush=True)
         raise SystemExit(2)
 
-    thresh = float(os.getenv("THRESH", "0.6"))
-    cooldown_s = float(os.getenv("COOLDOWN", "2.5"))
+    wakeword = cfg.wakeword
+    thresh = cfg.thresh
+    cooldown_s = cfg.cooldown_s
 
     wakeword_path = Path(wakeword).expanduser()
     if wakeword_path.exists():
