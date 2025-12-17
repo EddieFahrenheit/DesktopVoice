@@ -1,20 +1,32 @@
-# Environment / secrets
+# Secrets / local config
 .env
+.env.*
+!.env.example
 
 # Virtual environments
 .venv/
 venv/
 env/
+__pypackages__/
 
 # Python artifacts
 __pycache__/
 *.py[cod]
 *.pyd
+*.so
+*.egg-info/
+dist/
+build/
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
+.pyright/
+.coverage
+htmlcov/
 
-# Playwright persistent profile
-.playwright_profile/
+# Playwright persistent profiles (repo-local)
+.playwright_profile*/
+.playwright/
 
 # OS / editor
 .DS_Store
