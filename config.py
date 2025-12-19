@@ -16,6 +16,12 @@ class AppConfig:
     browser_channel: str | None
     profile_dir: Path
 
+    # Faster Whisper settings
+    command_seconds: float
+    whisper_model: str
+    whisper_device: str
+    whisper_compute_type: str
+
 
 def _env_bool(name: str, default: bool) -> bool:
     raw = os.getenv(name)
@@ -40,6 +46,12 @@ def load_config() -> AppConfig:
     if not profile_dir.is_absolute():
         profile_dir = repo_dir / profile_dir
 
+    # Load Faster Whisper settings
+    command_seconds = float(os.getenv("COMMAND_SECONDS", "3.0"))
+    whisper_model = (os.getenv("WHISPER_MODEL") or "small").strip()
+    whisper_device = (os.getenv("WHISPER_DEVICE") or "cpu").strip()
+    whisper_compute_type = (os.getenv("WHISPER_COMPUTE_TYPE") or "int8").strip()
+
     return AppConfig(
         repo_dir=repo_dir,
         wakeword=wakeword,
@@ -48,5 +60,9 @@ def load_config() -> AppConfig:
         mic_restart=mic_restart,
         browser_channel=browser_channel,
         profile_dir=profile_dir,
+        command_seconds=command_seconds,
+        whisper_model=whisper_model,
+        whisper_device=whisper_device,
+        whisper_compute_type=whisper_compute_type,
     )
 
