@@ -42,6 +42,24 @@ class MicAudioStream:
     def read(self) -> np.ndarray:
         return self._q.get()
 
+    def drain(self) -> int:
+        """
+        Discard any already-buffered audio chunks.
+
+        This is useful after a wake word is detected (and we record a command) so we don't
+        immediately re-process stale audio that accumulated in the queue while we were busy
+        transcribing.
+        """
+        dropped = 0
+        while True:
+            try:
+                self._q.get_nowait()
+            except queue.Empty:
+                break
+            else:
+                dropped += 1
+        return dropped
+
     def _callback(self, indata: np.ndarray, frames: int, time_info: Any, status: sd.CallbackFlags) -> None:  # noqa: ARG002
         if status:
             print(f"\nAudio status: {status}", flush=True)
@@ -54,4 +72,3 @@ class MicAudioStream:
             self._q.put_nowait(indata.copy())
         except queue.Full:
             pass
-

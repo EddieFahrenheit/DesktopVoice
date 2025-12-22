@@ -1,9 +1,10 @@
+import os
 import time
-from pathlib import Path
 
+from pathlib import Path
 from config import load_config
 from audio_stream import MicAudioStream
-
+from stt import record_command_wav, transcribe_wav
 try:
     from openwakeword.model import Model as WakeWordModel
     from openwakeword.utils import download_models
@@ -85,8 +86,27 @@ def main():
 
             now = time.time()
             if best_score >= thresh and (now - last_trigger) >= cooldown_s:
-                last_trigger = now
                 print(f"\nDETECTED: {best_name} score={best_score:.3f}", flush=True)
+                wav_path = record_command_wav(mic, sample_rate_hz=SAMPLE_RATE_HZ, seconds=cfg.command_seconds)
+                try:
+                    text = transcribe_wav(wav_path, cfg=cfg)
+                finally:
+                    try:
+                        os.unlink(wav_path)
+                    except OSError:
+                        pass
+
+                if text:
+                    print(f'Heard: "{text}"', flush=True)
+                else:
+                    print('Heard: "" (no speech detected)', flush=True)
+
+                # Cooldown should start *after* we've finished handling the wake-word event.
+                # Otherwise, if recording+transcription takes longer than `cooldown_s`, we can
+                # re-trigger immediately when we return to the wake-word loop.
+                mic.drain()
+                last_trigger = time.time()
+
 
 
 if __name__ == "__main__":
