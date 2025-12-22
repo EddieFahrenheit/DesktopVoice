@@ -1,10 +1,11 @@
 import os
 import time
-
 from pathlib import Path
-from config import load_config
-from audio_stream import MicAudioStream
-from stt import record_command_wav, transcribe_wav
+
+from .audio_stream import MicAudioStream
+from .config import load_config
+from .stt import record_command_wav, transcribe_wav
+
 try:
     from openwakeword.model import Model as WakeWordModel
     from openwakeword.utils import download_models
@@ -106,11 +107,3 @@ def main():
                 # re-trigger immediately when we return to the wake-word loop.
                 mic.drain()
                 last_trigger = time.time()
-
-
-
-if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\nExiting.", flush=True)

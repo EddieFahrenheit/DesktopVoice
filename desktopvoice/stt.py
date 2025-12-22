@@ -1,7 +1,7 @@
 import os
 import tempfile
 import wave
-from audio_stream import MicAudioStream
+from .audio_stream import MicAudioStream
 
 
 def record_command_wav(mic: MicAudioStream, *, sample_rate_hz: int, seconds: float) -> str:

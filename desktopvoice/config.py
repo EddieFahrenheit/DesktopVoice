@@ -31,8 +31,9 @@ def _env_bool(name: str, default: bool) -> bool:
 
 
 def load_config() -> AppConfig:
-    repo_dir = Path(__file__).resolve().parent
+    repo_dir = Path(__file__).resolve().parents[1]  # repo root
     load_dotenv(repo_dir / ".env")
+
 
     wakeword = (os.getenv("WAKEWORD") or "").strip()
     thresh = float(os.getenv("THRESH", "0.6"))
