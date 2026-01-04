@@ -27,6 +27,7 @@ htmlcov/
 # Playwright persistent profiles (repo-local)
 .playwright_profile*/
 .playwright/
+.desktopvoice_profile*/
 
 # OS / editor
 .DS_Store
