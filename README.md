@@ -6,9 +6,24 @@ Audio stays on-device for transcription. After the mic is clicked, your browser 
 
 ### Prereqs
 
-- Python 3.10+
+- Python 3.10+ (the code uses Python 3.10 syntax)
 - A working microphone
 - Google Chrome installed
+
+**macOS: upgrade Python if needed**
+
+Check your Python version:
+
+```bash
+python3 --version
+```
+
+If it's below 3.10 (for example Python 3.8.x), install a newer Python with Homebrew:
+
+```bash
+brew install python@3.11
+python3.11 --version
+```
 
 System deps:
 
@@ -31,8 +46,9 @@ brew install portaudio ffmpeg
 ### Install
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
