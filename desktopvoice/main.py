@@ -62,6 +62,8 @@ def main():
                             try:
                                 if command == "open_gemini":
                                     browser.open_gemini_and_click_mic()
+                                elif command == "ask_gemini":
+                                    browser.ask_gemini()
                                 elif command == "open_chatgpt":
                                     browser.open_chatgpt_and_click_mic()
                             except Exception as exc:

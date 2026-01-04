@@ -17,7 +17,7 @@ from playwright.sync_api import sync_playwright
 from .config import AppConfig
 
 
-GEMINI_URL = "https://gemini.google.com/"
+GEMINI_ORIGIN = "https://gemini.google.com"
 CHATGPT_URL = "https://chatgpt.com/"
 
 
@@ -46,17 +46,20 @@ class BrowserController:
         # flags, which can cause Google login pages to behave differently.
         if self._cfg.chrome_cdp_url:
             self._attached_via_cdp = True
-            try:
-                self._browser = self._pw.chromium.connect_over_cdp(self._cfg.chrome_cdp_url)
-            except Exception:
-                # If nothing is listening yet, auto-start a CDP-enabled Chrome and retry.
-                self._autostart_cdp_chrome()
-                self._browser = self._pw.chromium.connect_over_cdp(self._cfg.chrome_cdp_url)
+
+            if not self._is_cdp_up(self._cfg.chrome_cdp_url):
+                self._start_cdp_chrome()
+                self._wait_for_cdp(self._cfg.chrome_cdp_url, timeout_s=10.0)
+
+            self._browser = self._pw.chromium.connect_over_cdp(self._cfg.chrome_cdp_url)
+
             if self._browser.contexts:
                 self._context = self._browser.contexts[0]
             else:
                 self._context = self._browser.new_context()
+
             return self
+
 
         # Otherwise, launch a dedicated persistent context (acts like a “real” Chrome profile).
         # `channel="chrome"` uses your installed Google Chrome app.
@@ -83,24 +86,40 @@ class BrowserController:
             self._pw.stop()
 
     def open_gemini_and_click_mic(self) -> None:
-        page = self._get_or_open(GEMINI_URL)
-        self._click_first_matching_button(
-            page,
-            patterns=[
-                r"use microphone",
-                r"microphone",
-                r"voice",
-            ],
-        )
+        page = self._get_or_open(GEMINI_ORIGIN)
+        self.click_mic(page)
 
     def open_chatgpt_and_click_mic(self) -> None:
         page = self._get_or_open(CHATGPT_URL)
+        self.click_mic(page)
+
+    def ask_gemini(self) -> None:
+        """
+        Assumes a Gemini tab already exists; focuses it and clicks the mic.
+        """
+        assert self._context is not None
+
+        for page in self._context.pages:
+            if page.url.startswith(GEMINI_ORIGIN):
+                page.bring_to_front()
+                self.click_mic(page)
+                return
+
+        raise RuntimeError("Gemini tab not found. Say 'open gemini' first.")
+
+    def click_mic(self, page) -> None:
+        """
+        Helper function to find the first voice/mic button on a page and click it.
+        Used for both Gemini and ChatGPT.
+        """
         self._click_first_matching_button(
             page,
             patterns=[
                 r"voice",
                 r"start voice",
+                r"use microphone",
                 r"microphone",
+                r"voice",
             ],
         )
 
@@ -135,22 +154,26 @@ class BrowserController:
         parsed = urlparse(url)
         return f"{parsed.scheme}://{parsed.netloc}"
 
-    def _autostart_cdp_chrome(self) -> None:
-        """
-        Start a local Chrome instance with a remote debugging port, then wait until
-        the CDP endpoint is reachable.
-
-        Note: if normal Chrome is already running with the same profile, Chrome may
-        ignore these flags. In that case, the port won't open and we tell you to quit
-        Chrome and retry.
-        """
+    @staticmethod
+    def _is_cdp_up(cdp_url: str) -> bool:
+        parsed = urlparse(cdp_url)
+        host = parsed.hostname or "127.0.0.1"
+        port = parsed.port or 9222
+        url = f"http://{host}:{port}/json/version"
+        try:
+            with urlopen(url, timeout=0.5) as resp:  # noqa: S310
+                return resp.status == 200
+        except (URLError, OSError):
+            return False
+        
+    def _start_cdp_chrome(self) -> None:
         assert self._cfg.chrome_cdp_url is not None
         parsed = urlparse(self._cfg.chrome_cdp_url)
         host = parsed.hostname or "127.0.0.1"
         port = parsed.port or 9222
 
         if host not in {"127.0.0.1", "localhost"}:
-            raise RuntimeError("Refusing to auto-start CDP Chrome unless CHROME_CDP_URL uses 127.0.0.1/localhost.")
+            raise RuntimeError("For safety, only use CHROME_CDP_URL on 127.0.0.1/localhost.")
 
         chrome_bin = self._find_chrome_bin()
         user_data_dir = str(self._cfg.chrome_cdp_user_data_dir)
@@ -166,7 +189,6 @@ class BrowserController:
             "--no-default-browser-check",
         ]
 
-        # Fire-and-forget. We don't want to block the listener; we just need CDP up.
         subprocess.Popen(  # noqa: S603
             args,
             stdout=subprocess.DEVNULL,
@@ -174,14 +196,16 @@ class BrowserController:
             start_new_session=True,
             env={**os.environ},
         )
-
-        self._wait_for_cdp(host=host, port=port, timeout_s=10.0)
-
+    
     @staticmethod
-    def _wait_for_cdp(*, host: str, port: int, timeout_s: float) -> None:
+    def _wait_for_cdp(cdp_url: str, *, timeout_s: float) -> None:
         deadline = time.time() + timeout_s
-        url = f"http://{host}:{port}/json/version"
         last_err: Exception | None = None
+
+        parsed = urlparse(cdp_url)
+        host = parsed.hostname or "127.0.0.1"
+        port = parsed.port or 9222
+        url = f"http://{host}:{port}/json/version"
 
         while time.time() < deadline:
             try:
@@ -193,9 +217,10 @@ class BrowserController:
                 time.sleep(0.2)
 
         raise RuntimeError(
-            "Could not connect to Chrome DevTools after starting Chrome. "
-            "If Chrome is already running, quit it completely (Cmd+Q) and retry."
+            f"CDP did not become reachable at {url}. "
+            "Make sure regular Chrome isn't using the same profile, and that Chrome can start."
         ) from last_err
+    
 
     @staticmethod
     def _find_chrome_bin() -> str:

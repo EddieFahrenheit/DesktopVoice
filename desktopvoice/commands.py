@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Literal
 
-Command = Literal["open_gemini", "open_chatgpt"]
+Command = Literal["open_gemini", "open_chatgpt", "ask_gemini"]
 
 
 def _normalize(text: str) -> str:
@@ -26,5 +26,8 @@ def parse_command(text: str) -> Command | None:
 
     if t == "open chat":
         return "open_chatgpt"
+    
+    if t == "ask gemini":
+        return "ask_gemini"
 
     return None
