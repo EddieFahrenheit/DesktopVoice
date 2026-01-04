@@ -15,6 +15,9 @@ class AppConfig:
     mic_restart: bool
     browser_channel: str | None
     profile_dir: Path
+    chrome_cdp_url: str | None
+    chrome_cdp_user_data_dir: Path
+    chrome_cdp_profile_directory: str
 
     # Faster Whisper settings
     command_seconds: float
@@ -47,6 +50,20 @@ def load_config() -> AppConfig:
     if not profile_dir.is_absolute():
         profile_dir = repo_dir / profile_dir
 
+    # Optional: attach to an already-running Chrome via the Chrome DevTools Protocol (CDP).
+    # Example: CHROME_CDP_URL=http://127.0.0.1:9222
+    chrome_cdp_url = (os.getenv("CHROME_CDP_URL") or "").strip() or None
+    chrome_cdp_user_data_dir_raw = (os.getenv("CHROME_CDP_USER_DATA_DIR") or "").strip() or None
+    if chrome_cdp_user_data_dir_raw:
+        chrome_cdp_user_data_dir = Path(chrome_cdp_user_data_dir_raw).expanduser()
+        if not chrome_cdp_user_data_dir.is_absolute():
+            chrome_cdp_user_data_dir = repo_dir / chrome_cdp_user_data_dir
+    else:
+        # Default to the same profile directory we use when launching via Playwright.
+        chrome_cdp_user_data_dir = profile_dir
+
+    chrome_cdp_profile_directory = (os.getenv("CHROME_CDP_PROFILE_DIRECTORY") or "").strip() or "Default"
+
     # Load Faster Whisper settings
     command_seconds = float(os.getenv("COMMAND_SECONDS", "3.0"))
     whisper_model = (os.getenv("WHISPER_MODEL") or "small").strip()
@@ -61,9 +78,11 @@ def load_config() -> AppConfig:
         mic_restart=mic_restart,
         browser_channel=browser_channel,
         profile_dir=profile_dir,
+        chrome_cdp_url=chrome_cdp_url,
+        chrome_cdp_user_data_dir=chrome_cdp_user_data_dir,
+        chrome_cdp_profile_directory=chrome_cdp_profile_directory,
         command_seconds=command_seconds,
         whisper_model=whisper_model,
         whisper_device=whisper_device,
         whisper_compute_type=whisper_compute_type,
     )
-
