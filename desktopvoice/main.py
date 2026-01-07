@@ -54,7 +54,9 @@ def main():
                         if command is None:
                             print("No matching command (try: 'open gemini' or 'open chat')", flush=True)
                         else:
-                            if browser is None:
+                            if browser is None or not browser.ensure_ready():
+                                if browser is not None:
+                                    browser.__exit__(None, None, None)
                                 browser = BrowserController(cfg)
                                 browser.__enter__()
 
@@ -68,6 +70,10 @@ def main():
                                     browser.open_chatgpt_and_click_mic()
                             except Exception as exc:
                                 print(f"Browser action failed: {exc}", flush=True)
+                                # One recovery attempt
+                                browser.__exit__(None, None, None)
+                                browser = BrowserController(cfg)
+                                browser.__enter__()
                     else:
                         print('Heard: "" (no speech detected)', flush=True)
 

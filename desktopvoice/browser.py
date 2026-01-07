@@ -75,6 +75,29 @@ class BrowserController:
         )
         return self
 
+    def ensure_ready(self) -> bool:
+        """
+        Returns True if the current browser context still looks usable.
+        Returns False if it appears closed or disconnected (so caller can re-init).
+        """
+        if self._context is None:
+            return False
+
+        try:
+            # BrowserContext exposes is_closed() in Playwright Python
+            if self._context.is_closed():
+                return False
+
+            # If we attached via CDP, also verify the browser connection is alive
+            if self._browser is not None and not self._browser.is_connected():
+                return False
+
+            # Touch pages to ensure the context is responsive
+            _ = self._context.pages
+            return True
+        except Exception:
+            return False
+
     def __exit__(self, exc_type, exc, tb) -> None:
         # In CDP mode, we generally *do not* close the user's Chrome instance on exit.
         # We just disconnect by stopping Playwright.
