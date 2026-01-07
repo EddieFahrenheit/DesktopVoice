@@ -210,6 +210,7 @@ class BrowserController:
             f"--profile-directory={profile_dir}",
             "--no-first-run",
             "--no-default-browser-check",
+            "--start-fullscreen",
         ]
 
         subprocess.Popen(  # noqa: S603
