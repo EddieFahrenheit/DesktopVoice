@@ -4,6 +4,7 @@ from .audio_stream import MicAudioStream
 from .browser import BrowserController
 from .commands import parse_command
 from .config import load_config
+from .feedback import play_beep
 from .stt import record_command_wav, transcribe_wav
 from .wakeword import WakeWordListener
 
@@ -38,8 +39,10 @@ def main():
                 print(f"\rbest={best_name} score={best_score:.3f}  ", end="", flush=True)
 
                 if triggered:
+                    play_beep(start=True)
                     print(f"\nDETECTED: {best_name} score={best_score:.3f}", flush=True)
                     wav_path = record_command_wav(mic, sample_rate_hz=SAMPLE_RATE_HZ, seconds=cfg.command_seconds)
+                    play_beep(start=False)
                     try:
                         text = transcribe_wav(wav_path, cfg=cfg)
                     finally:
