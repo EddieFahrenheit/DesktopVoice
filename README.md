@@ -13,7 +13,7 @@ Audio stays on-device for transcription. Once the mic is clicked, the browser se
 
 ### Prereqs
 
-- Python 3.10+ (code uses Python 3.10 syntax)
+- Python 3.10/3.11 (code uses Python 3.10 syntax)
 - A working microphone
 - Google Chrome installed
 
@@ -53,7 +53,7 @@ brew install portaudio ffmpeg
 ### Install
 
 ```bash
-python3 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt

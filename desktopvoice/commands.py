@@ -16,6 +16,8 @@ gemini_aliases = {
     "see you next time",
     "bye bye",
     "bye",
+    "go go",
+    "lets go"
 }
 
 chat_aliases = {
@@ -35,6 +37,9 @@ mic_aliases = {
     "voice",
     "please",
     "start voice",
+    "boys",
+    "nice",
+    "oh its"
 }
 
 stop_aliases = {
