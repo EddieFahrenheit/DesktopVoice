@@ -95,6 +95,7 @@ Fallback (if you leave `CHROME_CDP_URL` blank):
 ### Run
 
 ```bash
+source .venv/bin/activate
 python -m desktopvoice
 ```
 

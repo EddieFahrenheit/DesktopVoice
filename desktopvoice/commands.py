@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Literal
 
-Command = Literal["open_gemini", "open_chatgpt", "mic"]
+Command = Literal["open_gemini", "open_chatgpt", "mic", "stop"]
 
 gemini_aliases = {
     "google",
@@ -17,7 +17,8 @@ gemini_aliases = {
     "bye bye",
     "bye",
     "go go",
-    "lets go"
+    "let's go",
+    "go home",
 }
 
 chat_aliases = {
@@ -25,7 +26,10 @@ chat_aliases = {
     "check",
     "chat me",
     "open chat",
+    "over chat",
+    "over the track",
     "cut",
+    "yeah",
 }
 
 mic_aliases = {
