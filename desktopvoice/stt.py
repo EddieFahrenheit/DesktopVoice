@@ -50,7 +50,7 @@ def transcribe_wav(path: str, *, cfg) -> str:
     print(f"Transcribing with faster-whisper (model={cfg.whisper_model}, device={cfg.whisper_device})…", flush=True)
     model = WhisperModel(cfg.whisper_model, device=cfg.whisper_device, compute_type=cfg.whisper_compute_type)
     try:
-        segments, _info = model.transcribe(path, beam_size=1, vad_filter=True)
+        segments, _info = model.transcribe(path, beam_size=1, vad_filter=True, language="en")
         text = " ".join(seg.text.strip() for seg in segments).strip()
     except Exception as exc:
         print(f"Transcription failed: {exc}", flush=True)

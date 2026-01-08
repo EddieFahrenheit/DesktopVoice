@@ -3,8 +3,46 @@ from __future__ import annotations
 import re
 from typing import Literal
 
-Command = Literal["open_gemini", "open_chatgpt", "ask_gemini"]
+Command = Literal["open_gemini", "open_chatgpt", "mic"]
 
+gemini_aliases = {
+    "google",
+    "gemini",
+    "open gemini",
+    "open google",
+    "kevin i",
+    "germany",
+    "good night",
+    "see you next time",
+    "bye bye",
+    "bye",
+}
+
+chat_aliases = {
+    "chat",
+    "check",
+    "chat me",
+    "open chat",
+    "cut",
+}
+
+mic_aliases = {
+    "mic",
+    "mike",
+    "like",
+    "ask",
+    "microphone",
+    "voice",
+    "please",
+    "start voice",
+}
+
+stop_aliases = {
+    "stop",
+    "cancel",
+    "nevermind",
+    "never mind",
+}
 
 def _normalize(text: str) -> str:
     text = text.strip().lower()
@@ -16,18 +54,19 @@ def _normalize(text: str) -> str:
 def parse_command(text: str) -> Command | None:
     """
     Convert transcribed text into a small set of exact commands.
-
-    We keep this strict for Day 1 (cheap + reliable): only a few phrases map to actions.
     """
     t = _normalize(text)
 
-    if t == "open gemini":
+    if t in gemini_aliases:
         return "open_gemini"
 
-    if t == "open chat":
+    if t in chat_aliases:
         return "open_chatgpt"
     
-    if t == "ask gemini":
-        return "ask_gemini"
+    if t in mic_aliases:
+        return "mic"
+    
+    if t in stop_aliases:
+        return "stop"
 
     return None

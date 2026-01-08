@@ -18,7 +18,7 @@ from .config import AppConfig
 
 
 GEMINI_ORIGIN = "https://gemini.google.com"
-CHATGPT_URL = "https://chatgpt.com/"
+CHATGPT_ORIGIN = "https://chatgpt.com/"
 
 
 class BrowserController:
@@ -37,6 +37,7 @@ class BrowserController:
         self._browser = None
         self._context = None
         self._attached_via_cdp = False
+        self._last_page = None
 
     def __enter__(self) -> "BrowserController":
         self._pw = sync_playwright().start()
@@ -69,6 +70,7 @@ class BrowserController:
             channel=self._cfg.browser_channel or None,
             headless=False,
             args=[
+                "--start-fullscreen",
                 "--no-first-run",
                 "--no-default-browser-check",
             ],
@@ -108,29 +110,44 @@ class BrowserController:
         if self._pw is not None:
             self._pw.stop()
 
-    def open_gemini_and_click_mic(self) -> None:
+    def open_gemini(self) -> None:
         page = self._get_or_open(GEMINI_ORIGIN)
-        self.click_mic(page)
 
-    def open_chatgpt_and_click_mic(self) -> None:
-        page = self._get_or_open(CHATGPT_URL)
-        self.click_mic(page)
+    def open_chatgpt_voice(self) -> None:
+        page = self._get_or_open(CHATGPT_ORIGIN)
+        self._click_first_matching_button(page, patterns="start voice mode")
 
-    def ask_gemini(self) -> None:
+    def start_voice(self) -> None:
         """
-        Assumes a Gemini tab already exists; focuses it and clicks the mic.
+         Start voice on most recently touched Gemini or ChatGPT tab.
         """
-        assert self._context is not None
+        page = self._get_last_page()
+        if page is not None:
+            page.bring_to_front()
+            self.click_voice(page)
+            return
 
-        for page in self._context.pages:
-            if page.url.startswith(GEMINI_ORIGIN):
-                page.bring_to_front()
-                self.click_mic(page)
-                return
+        raise RuntimeError("No Gemini or ChatGPT tab found. Say 'google' or 'chat' first.")
 
-        raise RuntimeError("Gemini tab not found. Say 'open gemini' first.")
+    def stop_voice(self) -> None:
+        """
+        Stop voice on most recently touched Gemini or ChatGPT tab.
+        """
+        page = self._get_last_page()
+        if page is not None:
+            page.bring_to_front()
+            self._click_first_matching_button(
+                page,
+                patterns=[
+                    r"end voice mode",
+                    r"microphone",
+                ],
+            )
+            return
 
-    def click_mic(self, page) -> None:
+        raise RuntimeError("No voice mode running.")
+
+    def click_voice(self, page) -> None:
         """
         Helper function to find the first voice/mic button on a page and click it.
         Used for both Gemini and ChatGPT.
@@ -138,11 +155,10 @@ class BrowserController:
         self._click_first_matching_button(
             page,
             patterns=[
-                r"voice",
-                r"start voice",
-                r"use microphone",
                 r"microphone",
+                r"start voice mode",
                 r"voice",
+                r"use microphone",
             ],
         )
 
@@ -155,6 +171,7 @@ class BrowserController:
         for page in self._context.pages:
             if page.url.startswith(origin):
                 page.bring_to_front()
+                self._last_page = page
                 return page
 
         # 2) Avoid creating a "pointless empty tab": when Chrome starts, it often has an
@@ -164,12 +181,14 @@ class BrowserController:
             if page.url in {"about:blank", "chrome://newtab/", "chrome://new-tab-page/"}:
                 page.goto(url, wait_until="domcontentloaded")
                 page.bring_to_front()
+                self._last_page = page
                 return page
 
         # 3) Otherwise, open a new tab.
         page = self._context.new_page()
         page.goto(url, wait_until="domcontentloaded")
         page.bring_to_front()
+        self._last_page = page
         return page
 
     @staticmethod
@@ -266,11 +285,14 @@ class BrowserController:
 
         raise RuntimeError("Could not find Google Chrome. Install it or add it to PATH.")
 
-    def _click_first_matching_button(self, page, patterns: list[str]) -> None:
+    def _click_first_matching_button(self, page, patterns: str | list[str]) -> None:
         """
         Try a few robust “by accessible name” matches first.
         These are usually more stable than CSS selectors across UI changes.
         """
+        self._last_page = page
+        if isinstance(patterns, str):
+            patterns = [patterns]
         for pattern in patterns:
             locator = page.get_by_role("button", name=re.compile(pattern, re.IGNORECASE))
             try:
@@ -279,4 +301,17 @@ class BrowserController:
             except PlaywrightTimeoutError:
                 continue
 
-        raise RuntimeError("Could not find the microphone/voice button on the page (UI may have changed).")
+        raise RuntimeError("Could not find button that was being searched.")
+    
+    def _get_last_page(self):
+        assert self._context is not None
+
+        if self._last_page and not self._last_page.is_closed():
+            return self._last_page
+
+        # Fallback: most recent Gemini/ChatGPT tab
+        for page in reversed(self._context.pages):
+            if page.url.startswith(("https://gemini.google.com", "https://chatgpt.com")):
+                return page
+
+        return None

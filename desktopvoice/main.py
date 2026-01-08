@@ -52,7 +52,7 @@ def main():
                         print(f'Heard: "{text}"', flush=True)
                         command = parse_command(text)
                         if command is None:
-                            print("No matching command (try: 'open gemini' or 'open chat')", flush=True)
+                            print("No matching command (try: 'google', 'chat', or 'voice')", flush=True)
                         else:
                             if browser is None or not browser.ensure_ready():
                                 if browser is not None:
@@ -63,11 +63,13 @@ def main():
                             print(f"Executing: {command}", flush=True)
                             try:
                                 if command == "open_gemini":
-                                    browser.open_gemini_and_click_mic()
-                                elif command == "ask_gemini":
-                                    browser.ask_gemini()
+                                    browser.open_gemini()
                                 elif command == "open_chatgpt":
-                                    browser.open_chatgpt_and_click_mic()
+                                    browser.open_chatgpt_voice()
+                                elif command == "mic":
+                                    browser.start_voice()
+                                elif command == "stop":
+                                    browser.stop_voice()
                             except Exception as exc:
                                 print(f"Browser action failed: {exc}", flush=True)
                                 # One recovery attempt
