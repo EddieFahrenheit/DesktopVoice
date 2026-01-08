@@ -6,7 +6,7 @@ def play_beep(start: bool) -> None:
     """
     Cross‑platform beep:
     - macOS: afplay
-    - Ubuntu: paplay or aplay
+    - Ubuntu: paplay
     - fallback: terminal bell
     """
     try:
@@ -16,14 +16,10 @@ def play_beep(start: bool) -> None:
             return
 
         if shutil.which("paplay"):
-            sound = "/usr/share/sounds/freedesktop/stereo/message.oga"
+            sound = "/usr/share/sounds/Yaru/stereo/device-added.oga" if start else "/usr/share/sounds/Yaru/stereo/device-removed.oga"
             subprocess.Popen(["paplay", sound], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return
 
-        if shutil.which("aplay"):
-            sound = "/usr/share/sounds/alsa/Front_Center.wav"
-            subprocess.Popen(["aplay", sound], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            return
     except Exception:
         pass
 
