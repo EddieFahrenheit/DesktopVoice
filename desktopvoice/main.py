@@ -4,6 +4,7 @@ from .audio_stream import MicAudioStream
 from .browser import BrowserController
 from .commands import parse_command
 from .config import load_config
+from desktopvoice.ha_assist import send_to_ha
 from .feedback import play_beep
 from .stt import record_command_wav, transcribe_wav
 from .wakeword import WakeWordListener
@@ -71,8 +72,10 @@ def main():
                                     browser.open_chatgpt_voice()
                                 elif command == "mic":
                                     browser.start_voice()
-                                elif command == "stop":
-                                    browser.stop_voice()
+                                else:
+                                    ha_result = send_to_ha(text)
+                                    print("HA:", ha_result.get("response", {}).get("speech", {}).get("plain", {}).get("speech"))
+                                    
                             except Exception as exc:
                                 print(f"Browser action failed: {exc}", flush=True)
                                 # One recovery attempt

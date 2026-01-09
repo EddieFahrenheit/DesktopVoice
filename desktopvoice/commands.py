@@ -50,13 +50,6 @@ mic_aliases = {
     "oh its"
 }
 
-stop_aliases = {
-    "stop",
-    "cancel",
-    "nevermind",
-    "never mind",
-}
-
 def _normalize(text: str) -> str:
     text = text.strip().lower()
     text = re.sub(r"[^\w\s]", " ", text)   # drop punctuation
@@ -78,8 +71,5 @@ def parse_command(text: str) -> Command | None:
     
     if t in mic_aliases:
         return "mic"
-    
-    if t in stop_aliases:
-        return "stop"
 
     return None

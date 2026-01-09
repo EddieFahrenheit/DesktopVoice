@@ -131,24 +131,6 @@ class BrowserController:
 
         raise RuntimeError("No Gemini or ChatGPT tab found. Say 'google' or 'chat' first.")
 
-    def stop_voice(self) -> None:
-        """
-        Stop voice on most recently touched Gemini or ChatGPT tab.
-        """
-        page = self._get_last_page()
-        if page is not None:
-            page.bring_to_front()
-            self._click_first_matching_button(
-                page,
-                patterns=[
-                    r"end voice mode",
-                    r"microphone",
-                ],
-            )
-            return
-
-        raise RuntimeError("No voice mode running.")
-
     def click_voice(self, page) -> None:
         """
         Helper function to find the first voice/mic button on a page and click it.
