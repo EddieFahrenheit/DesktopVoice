@@ -70,9 +70,11 @@ class BrowserController:
             channel=self._cfg.browser_channel or None,
             headless=False,
             args=[
-                "--start-fullscreen",
+                "--start-maximized",
                 "--no-first-run",
                 "--no-default-browser-check",
+                "--force-dark-mode",
+                "--enable-features=WebUIDarkMode,WebContentsForceDark",
             ],
         )
         return self
@@ -229,7 +231,9 @@ class BrowserController:
             f"--profile-directory={profile_dir}",
             "--no-first-run",
             "--no-default-browser-check",
-            "--start-fullscreen",
+            "--start-maximized",
+            "--force-dark-mode",
+            "--enable-features=WebUIDarkMode,WebContentsForceDark",
         ]
 
         subprocess.Popen(  # noqa: S603
