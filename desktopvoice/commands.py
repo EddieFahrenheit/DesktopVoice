@@ -19,6 +19,7 @@ gemini_aliases = {
     "go go",
     "let's go",
     "go home",
+    "good",
 }
 
 chat_aliases = {
