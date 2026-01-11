@@ -12,6 +12,10 @@ class AppConfig:
     thresh: float
     cooldown_s: float
 
+    ha_url: str | None
+    ha_token: str | None
+    ha_language: str
+
     mic_restart: bool
     browser_channel: str | None
     profile_dir: Path
@@ -37,10 +41,13 @@ def load_config() -> AppConfig:
     repo_dir = Path(__file__).resolve().parents[1]  # repo root
     load_dotenv(repo_dir / ".env")
 
-
     wakeword = (os.getenv("WAKEWORD") or "").strip()
     thresh = float(os.getenv("THRESH", "0.6"))
     cooldown_s = float(os.getenv("COOLDOWN", "2.5"))
+
+    ha_url = (os.getenv("HA_URL") or "").strip() or None
+    ha_token = (os.getenv("HA_TOKEN") or "").strip() or None
+    ha_language = (os.getenv("HA_LANGUAGE") or "en").strip()
 
     mic_restart = _env_bool("MIC_RESTART", default=True)
     browser_channel = (os.getenv("BROWSER_CHANNEL") or "").strip() or None
@@ -75,6 +82,9 @@ def load_config() -> AppConfig:
         wakeword=wakeword,
         thresh=thresh,
         cooldown_s=cooldown_s,
+        ha_url=ha_url,
+        ha_token=ha_token,
+        ha_language=ha_language,
         mic_restart=mic_restart,
         browser_channel=browser_channel,
         profile_dir=profile_dir,
