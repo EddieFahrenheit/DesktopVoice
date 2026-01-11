@@ -4,7 +4,6 @@ from .audio_stream import MicAudioStream
 from .browser import BrowserController
 from .commands import parse_command
 from .config import load_config
-from desktopvoice.ha_assist import send_to_ha
 from .feedback import play_beep, wake_display
 from .stt import record_command_wav, transcribe_wav
 from .wakeword import WakeWordListener

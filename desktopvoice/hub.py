@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 
 from desktopvoice.config import load_config
 from desktopvoice.ha_bridge import HomeAssistantBridge
-
+from desktopvoice.hub_routes import router as hub_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -18,3 +18,4 @@ async def lifespan(app: FastAPI):
         await bridge.close()
 
 app = FastAPI(lifespan=lifespan)
+app.include_router(hub_router, prefix="/hub")

@@ -5,3 +5,5 @@ playwright
 python-dotenv
 faster-whisper
 mcp
+fastapi
+uvicorn
