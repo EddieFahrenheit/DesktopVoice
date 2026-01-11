@@ -113,7 +113,6 @@ Primary phrases (fast + reliable):
 - `google`: open/focus Gemini
 - `chat`: open/focus ChatGPT and start voice mode
 - `voice`: click the mic / voice button on the most recent assistant tab
-- `stop`: stop voice mode on the most recent assistant tab
 
 There are additional alias phrases to reduce mis-hearings. See `desktopvoice/commands.py` to customize.
 
