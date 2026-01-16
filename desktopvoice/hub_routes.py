@@ -22,15 +22,18 @@ def _normalize(text: str) -> str:
 
 
 ENTITY_KEYWORDS: list[tuple[str, str]] = [
-    ("jarvis", "switch.jarvis"),
-    ("server computer", "switch.server_computer"),
-    ("server", "switch.server_computer"),
+    ("jarvis", "switch.full_jarvis"),
     ("ubuntu pc", "switch.ubuntu_pc"),
     ("coding mac", "switch.macbook_pro"),
-    ("macbook pro", "switch.macbook_pro"),
-    ("kitchen mac", "switch.rhasspy"),
     ("rhasspy", "switch.rhasspy"),
 ]
+
+SCRIPT_ACTIONS: list[tuple[str, str, str | None]] = [
+    ("jarvis", "script.turn_on_jarvis", "script.turn_off_jarvis"),
+    ("workstation", "script.wake_workstation", "script.sleep_workstation"),
+    ("rhasspy", "script.full_wake_rhasspy"),
+]
+
 
 OFF_KEYWORDS = ("off", "shutdown", "power down", "turn off", "sleep")
 ON_KEYWORDS = ("on", "wake", "start", "turn on", "power on")
