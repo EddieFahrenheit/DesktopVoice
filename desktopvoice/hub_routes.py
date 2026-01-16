@@ -22,10 +22,9 @@ def _normalize(text: str) -> str:
 
 
 ENTITY_KEYWORDS: list[tuple[str, str]] = [
-    ("jarvis", "switch.full_jarvis"),
-    ("ubuntu pc", "switch.ubuntu_pc"),
-    ("coding mac", "switch.macbook_pro"),
-    ("rhasspy", "switch.rhasspy"),
+    ("bedroom lights", "switch.bedroom_lights"),
+    ("living room lights", "switch.living_room_lights"),
+    ("downstairs lights", "switch.downstairs_light"),
 ]
 
 SCRIPT_ACTIONS: list[tuple[str, str, str | None]] = [
