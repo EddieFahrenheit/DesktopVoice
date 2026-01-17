@@ -10,6 +10,7 @@ Audio stays on-device for transcription. Once the mic is clicked, the browser se
 - Local speech-to-text (faster-whisper)
 - Simple command router (short phrases → actions)
 - Chrome automation for Gemini / ChatGPT (Playwright + optional CDP)
+- Optional Hub API for Home Assistant control (FastAPI + MCP)
 
 ### Prereqs
 
@@ -81,6 +82,12 @@ Edit `.env` (minimum):
 - `COMMAND_SECONDS`: how long to record after the wake word (e.g. `1.5`).
 - `WHISPER_MODEL`: local speech-to-text model (e.g. `small`).
 
+Home Assistant (Hub API):
+
+- `HA_URL`: Home Assistant base URL (example: `http://192.168.122.195:8123`).
+- `HA_TOKEN`: long-lived access token.
+- `HA_LANGUAGE`: language for HA Assist (default `en`).
+
 Chrome control mode (recommended: CDP + dedicated profile):
 
 - `CHROME_CDP_URL`: set to `http://127.0.0.1:9222` to enable CDP mode.
@@ -99,6 +106,29 @@ source .venv/bin/activate
 python -m desktopvoice
 ```
 
+### Run Hub API (optional)
+
+Requirements:
+
+- `uvx` available on the Hub host (install via `pipx install uv` or `pip install uv`).
+
+Start the API server:
+
+```bash
+uvicorn desktopvoice.hub:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Smoke test:
+
+```bash
+curl http://192.168.1.160:8000/hub/health
+curl -X POST http://192.168.1.160:8000/hub/command \
+  -H "Content-Type: application/json" \
+  -d '{"text":"turn on jarvis"}'
+```
+
+Customize hub routing in `desktopvoice/hub_routes.py` (keywords, scripts, lights, switches).
+
 ### First run (one-time)
 
 1. Start DesktopVoice.
@@ -113,6 +143,7 @@ Primary phrases (fast + reliable):
 - `google`: open/focus Gemini
 - `chat`: open/focus ChatGPT and start voice mode
 - `voice`: click the mic / voice button on the most recent assistant tab
+- `stop`: stop voice mode on the most recent assistant tab
 
 There are additional alias phrases to reduce mis-hearings. See `desktopvoice/commands.py` to customize.
 

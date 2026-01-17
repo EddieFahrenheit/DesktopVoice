@@ -101,9 +101,10 @@ class HomeAssistantBridge:
         service_data: dict[str, Any] | None = None,
     ) -> Any:
         session = self._require_session()
-        payload = {"domain": domain, "service": service, "service_data": service_data or {}}
+        payload = {"domain": domain, "service": service, "data": service_data or {}}
         async with self._lock:
             return await session.call_tool(MCP_CALL_SERVICE_TOOL, arguments=payload)
+
 
     async def switch_turn_on(self, entity_id: str) -> None:
         await self.call_service(domain="switch", service="turn_on", service_data={"entity_id": entity_id})

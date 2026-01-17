@@ -22,15 +22,15 @@ def _normalize(text: str) -> str:
 
 
 ENTITY_KEYWORDS: list[tuple[str, str]] = [
-    ("bedroom lights", "switch.bedroom_lights"),
-    ("living room lights", "switch.living_room_lights"),
-    ("downstairs lights", "switch.downstairs_light"),
+    ("bedroom lights", "light.bedroom_lights"),
+    ("living room lights", "light.living_room_lights"),
+    ("downstairs lights", "light.downstairs_light"),
 ]
 
 SCRIPT_ACTIONS: list[tuple[str, str, str | None]] = [
     ("jarvis", "script.turn_on_jarvis", "script.turn_off_jarvis"),
     ("workstation", "script.wake_workstation", "script.sleep_workstation"),
-    ("rhasspy", "script.full_wake_rhasspy"),
+    ("rhasspy", "script.full_wake_rhasspy", None),
 ]
 
 
@@ -41,22 +41,26 @@ ON_KEYWORDS = ("on", "wake", "start", "turn on", "power on")
 async def _dispatch_to_ha(ha: HomeAssistantBridge, text: str) -> str:
     t = _normalize(text)
 
-    if "monitor" in t and any(k in t for k in ON_KEYWORDS):
-        await ha.run_shell_command("pc_monitor_on")
-        return "shell_command.pc_monitor_on"
+    for keyword, on_entity, off_entity in SCRIPT_ACTIONS:
+        if keyword in t:
+            if any(k in t for k in OFF_KEYWORDS):
+                if not off_entity:
+                    raise HTTPException(status_code=422, detail="No off script defined for this device.")
+                await ha.call_service(domain="script", service="turn_on", service_data={"entity_id": off_entity})
+                return f"script.turn_on:{off_entity}"
 
-    if "monitor" in t and any(k in t for k in OFF_KEYWORDS):
-        await ha.run_shell_command("pc_monitor_off")
-        return "shell_command.pc_monitor_off"
+            await ha.call_service(domain="script", service="turn_on", service_data={"entity_id": on_entity})
+            return f"script.turn_on:{on_entity}"
 
     for keyword, entity_id in ENTITY_KEYWORDS:
         if keyword in t:
+            domain = entity_id.split(".", 1)[0]
             if any(k in t for k in OFF_KEYWORDS):
-                await ha.switch_turn_off(entity_id)
-                return f"switch.turn_off:{entity_id}"
+                await ha.call_service(domain=domain, service="turn_off", service_data={"entity_id": entity_id})
+                return f"{domain}.turn_off:{entity_id}"
             if any(k in t for k in ON_KEYWORDS):
-                await ha.switch_turn_on(entity_id)
-                return f"switch.turn_on:{entity_id}"
+                await ha.call_service(domain=domain, service="turn_on", service_data={"entity_id": entity_id})
+                return f"{domain}.turn_on:{entity_id}"
             raise HTTPException(status_code=422, detail="Missing on/off intent for device.")
 
     raise HTTPException(status_code=422, detail="No matching device found.")
