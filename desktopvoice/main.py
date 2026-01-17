@@ -5,6 +5,7 @@ from .browser import BrowserController
 from .commands import parse_command
 from .config import load_config
 from .feedback import play_beep, wake_display
+from .hub_client import send_hub_command
 from .stt import record_command_wav, transcribe_wav
 from .wakeword import WakeWordListener
 
@@ -56,7 +57,22 @@ def main():
                         print(f'Heard: "{text}"', flush=True)
                         command = parse_command(text)
                         if command is None:
-                            print("No matching command (try: 'google', 'chat', or 'voice')", flush=True)
+                            if not cfg.hub_url:
+                                print("No matching command and HUB_URL not set.", flush=True)
+                            else:
+                                ok, status, body = send_hub_command(
+                                    hub_url=cfg.hub_url,
+                                    text=text,
+                                    api_key=cfg.hub_api_key,
+                                    timeout_s=cfg.hub_timeout_s,
+                                )
+                                if ok:
+                                    print(f"Hub OK: {body}", flush=True)
+                                elif status == 422:
+                                    print(f"Hub no match: {body}", flush=True)
+                                else:
+                                    print(f"Hub error ({status}): {body}", flush=True)
+                            continue
                         else:
                             if browser is None or not browser.ensure_ready():
                                 if browser is not None:
