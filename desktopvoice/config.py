@@ -16,6 +16,10 @@ class AppConfig:
     ha_token: str | None
     ha_language: str
 
+    hub_url: str | None
+    hub_api_key: str | None
+    hub_timeout_s: float
+
     mic_restart: bool
     browser_channel: str | None
     profile_dir: Path
@@ -48,6 +52,10 @@ def load_config() -> AppConfig:
     ha_url = (os.getenv("HA_URL") or "").strip() or None
     ha_token = (os.getenv("HA_TOKEN") or "").strip() or None
     ha_language = (os.getenv("HA_LANGUAGE") or "en").strip()
+
+    hub_url = (os.getenv("HUB_URL") or "").strip() or None
+    hub_api_key = (os.getenv("HUB_API_KEY") or "").strip() or None
+    hub_timeout_s = float(os.getenv("HUB_TIMEOUT", "5"))
 
     mic_restart = _env_bool("MIC_RESTART", default=True)
     browser_channel = (os.getenv("BROWSER_CHANNEL") or "").strip() or None
@@ -85,6 +93,9 @@ def load_config() -> AppConfig:
         ha_url=ha_url,
         ha_token=ha_token,
         ha_language=ha_language,
+        hub_url=hub_url,
+        hub_api_key=hub_api_key,
+        hub_timeout_s=hub_timeout_s,
         mic_restart=mic_restart,
         browser_channel=browser_channel,
         profile_dir=profile_dir,
