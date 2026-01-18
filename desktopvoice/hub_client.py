@@ -1,4 +1,5 @@
 import json
+import socket
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -17,5 +18,7 @@ def send_hub_command(*, hub_url: str, text: str, api_key: str | None, timeout_s:
             return True, resp.status, body
     except HTTPError as exc:
         return False, exc.code, exc.read().decode("utf-8")
+    except (TimeoutError, socket.timeout) as exc:
+        return False, "timeout", str(exc)
     except URLError as exc:
         return False, "network", str(exc)

@@ -43,69 +43,75 @@ def main():
                     wake_display()
                     play_beep(start=True)
                     print(f"\nDETECTED: {best_name} score={best_score:.3f}", flush=True)
-                    wav_path = record_command_wav(mic, sample_rate_hz=SAMPLE_RATE_HZ, seconds=cfg.command_seconds)
-                    play_beep(start=False)
                     try:
-                        text = transcribe_wav(wav_path, cfg=cfg)
-                    finally:
+                        wav_path = record_command_wav(
+                            mic, sample_rate_hz=SAMPLE_RATE_HZ, seconds=cfg.command_seconds
+                        )
+                        play_beep(start=False)
                         try:
-                            os.unlink(wav_path)
-                        except OSError:
-                            pass
-
-                    if text:
-                        print(f'Heard: "{text}"', flush=True)
-                        command = parse_command(text)
-                        if command is None:
-                            if not cfg.hub_url:
-                                print("No matching command and HUB_URL not set.", flush=True)
-                            else:
-                                ok, status, body = send_hub_command(
-                                    hub_url=cfg.hub_url,
-                                    text=text,
-                                    api_key=cfg.hub_api_key,
-                                    timeout_s=cfg.hub_timeout_s,
-                                )
-                                if ok:
-                                    print(f"Hub OK: {body}", flush=True)
-                                elif status == 422:
-                                    print(f"Hub no match: {body}", flush=True)
-                                else:
-                                    print(f"Hub error ({status}): {body}", flush=True)
-                            continue
-                        else:
-                            if browser is None or not browser.ensure_ready():
-                                if browser is not None:
-                                    browser.__exit__(None, None, None)
-                                browser = BrowserController(cfg)
-                                browser.__enter__()
-
-                            print(f"Executing: {command}", flush=True)
+                            text = transcribe_wav(wav_path, cfg=cfg)
+                        finally:
                             try:
-                                if command == "open_gemini":
-                                    browser.open_gemini()
-                                elif command == "open_chatgpt":
-                                    browser.open_chatgpt_voice()
-                                elif command == "mic":
-                                    browser.start_voice()
+                                os.unlink(wav_path)
+                            except OSError:
+                                pass
+
+                        if text:
+                            print(f'Heard: "{text}"', flush=True)
+                            command = parse_command(text)
+                            if command is None:
+                                if not cfg.hub_url:
+                                    print("No matching command and HUB_URL not set.", flush=True)
                                 else:
-                                    ha_result = send_to_ha(text)
-                                    print("HA:", ha_result.get("response", {}).get("speech", {}).get("plain", {}).get("speech"))
+                                    ok, status, body = send_hub_command(
+                                        hub_url=cfg.hub_url,
+                                        text=text,
+                                        api_key=cfg.hub_api_key,
+                                        timeout_s=cfg.hub_timeout_s,
+                                    )
+                                    if ok:
+                                        print(f"Hub OK: {body}", flush=True)
+                                    elif status == 422:
+                                        print(f"Hub no match: {body}", flush=True)
+                                    else:
+                                        print(f"Hub error ({status}): {body}", flush=True)
+                            else:
+                                if browser is None or not browser.ensure_ready():
+                                    if browser is not None:
+                                        browser.__exit__(None, None, None)
+                                    browser = BrowserController(cfg)
+                                    browser.__enter__()
 
-                            except Exception as exc:
-                                print(f"Browser action failed: {exc}", flush=True)
-                                # One recovery attempt
-                                browser.__exit__(None, None, None)
-                                browser = BrowserController(cfg)
-                                browser.__enter__()
-                    else:
-                        print('Heard: "" (no speech detected)', flush=True)
+                                print(f"Executing: {command}", flush=True)
+                                try:
+                                    if command == "open_gemini":
+                                        browser.open_gemini()
+                                    elif command == "open_chatgpt":
+                                        browser.open_chatgpt_voice()
+                                    elif command == "mic":
+                                        browser.start_voice()
+                                    else:
+                                        ha_result = send_to_ha(text)
+                                        print(
+                                            "HA:",
+                                            ha_result.get("response", {})
+                                            .get("speech", {})
+                                            .get("plain", {})
+                                            .get("speech"),
+                                        )
+                                except Exception as exc:
+                                    print(f"Browser action failed: {exc}", flush=True)
+                                    # One recovery attempt
+                                    browser.__exit__(None, None, None)
+                                    browser = BrowserController(cfg)
+                                    browser.__enter__()
+                        else:
+                            print('Heard: "" (no speech detected)', flush=True)
+                    finally:
+                        # Always reset cooldown and clear buffered audio.
+                        mic.drain()
+                        listener.mark_handled_now()
 
-                    # Cooldown should start *after* we've finished handling the wake-word event.
-                    # Otherwise, if recording+transcription takes longer than `cooldown_s`, we can
-                    # re-trigger immediately when we return to the wake-word loop.
-                    mic.drain()
-                    listener.mark_handled_now()
     finally:
         if browser is not None:
             browser.__exit__(None, None, None)
