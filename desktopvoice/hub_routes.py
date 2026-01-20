@@ -21,7 +21,7 @@ def _normalize(text: str) -> str:
     return " ".join(text.strip().lower().split())
 
 
-OFF_KEYWORDS = ("off", "shutdown", "power down", "turn off", "sleep", "close", "kill", "boss")
+OFF_KEYWORDS = ("off", "shutdown", "power down", "turn off", "sleep", "close", "kill", "boss", "fuck")
 ON_KEYWORDS = ("on", "wake", "start", "turn on", "power on", "open", "wait")
 
 INTENTS = [
@@ -49,7 +49,7 @@ INTENTS = [
         "entity": "light.bedroom_lights",
     },
     {
-        "aliases": {"main", "living room", "living room lights", "me", "make", "lay", "man", "may", "wait", "made "},
+        "aliases": {"main", "living room", "living room lights", "me", "make", "lay", "man", "may", "wait", "made", "lane"},
         "type": "entity",
         "entity": "light.living_room_lights",
     },
