@@ -33,3 +33,10 @@ htmlcov/
 .DS_Store
 .idea/
 .vscode/
+
+# Local artifacts
+cuda-keyring_1.1-1_all.deb
+*.log
+logs/
+recordings/
+*.wav
