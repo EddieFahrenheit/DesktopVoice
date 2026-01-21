@@ -12,6 +12,11 @@ class AppConfig:
     thresh: float
     cooldown_s: float
 
+    command_wakewords: tuple[str, ...]
+    command_thresh: float
+    command_cooldown_s: float
+
+
     ha_url: str | None
     ha_token: str | None
     ha_language: str
@@ -40,6 +45,15 @@ def _env_bool(name: str, default: bool) -> bool:
         return default
     return raw.strip().lower() in {"1", "true", "yes", "y", "on"}
 
+def _normalize_wakeword_ref(value: str, repo_dir: Path) -> str:
+    value = value.strip()
+    if not value:
+        return value
+    path = Path(value).expanduser()
+    looks_like_path = path.suffix.lower() == ".onnx" or "/" in value or "\\" in value
+    if looks_like_path and not path.is_absolute():
+        path = repo_dir / path
+    return str(path) if looks_like_path else value
 
 def load_config() -> AppConfig:
     repo_dir = Path(__file__).resolve().parents[1]  # repo root
@@ -48,6 +62,15 @@ def load_config() -> AppConfig:
     wakeword = (os.getenv("WAKEWORD") or "").strip()
     thresh = float(os.getenv("THRESH", "0.6"))
     cooldown_s = float(os.getenv("COOLDOWN", "2.5"))
+
+    command_wakewords_raw = (os.getenv("COMMAND_WAKEWORDS") or "").strip()
+    command_wakewords = tuple(
+        _normalize_wakeword_ref(item, repo_dir)
+        for item in command_wakewords_raw.split(",")
+        if item.strip()
+    )
+    command_thresh = float(os.getenv("COMMAND_THRESH", "0.75"))
+    command_cooldown_s = float(os.getenv("COMMAND_COOLDOWN", "2.0"))
 
     ha_url = (os.getenv("HA_URL") or "").strip() or None
     ha_token = (os.getenv("HA_TOKEN") or "").strip() or None
@@ -90,6 +113,9 @@ def load_config() -> AppConfig:
         wakeword=wakeword,
         thresh=thresh,
         cooldown_s=cooldown_s,
+        command_wakewords=command_wakewords,
+        command_thresh=command_thresh,
+        command_cooldown_s=command_cooldown_s,
         ha_url=ha_url,
         ha_token=ha_token,
         ha_language=ha_language,
