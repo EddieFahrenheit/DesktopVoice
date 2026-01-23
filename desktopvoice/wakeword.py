@@ -8,7 +8,6 @@ except ModuleNotFoundError:
     print("Missing dependency: openwakeword. Run `pip install -r requirements.txt`.")
     raise
 
-
 class WakeWordListener:
     """
     Wraps openWakeWord wake-word detection and cooldown logic.
@@ -16,19 +15,41 @@ class WakeWordListener:
     This keeps `main.py` focused on orchestration (read audio -> detect -> record -> transcribe).
     """
 
-    def __init__(self, *, wakeword: str, thresh: float, cooldown_s: float) -> None:
-        self._wakeword = wakeword
+    def __init__(self, *, wakeword: str | list[str], thresh: float, cooldown_s: float) -> None:
         self._thresh = thresh
         self._cooldown_s = cooldown_s
         self._last_trigger = 0.0
 
-        wakeword_path = Path(wakeword).expanduser()
-        if wakeword_path.exists():
-            wakeword_model_arg = str(wakeword_path)
+        if isinstance(wakeword, str):
+            wakewords = [wakeword]
         else:
-            print("Downloading openWakeWord model files (first run only)…", flush=True)
+            wakewords = list(wakeword)
+
+        if not wakewords:
+            raise ValueError("wakeword list is empty.")
+        self._wakewords = wakewords
+
+        self._name_map: dict[str, str] = {}
+        model_args: list[str] = []
+        for entry in wakewords:
+            label = Path(entry).stem
+            self._name_map[entry] = label
+            self._name_map[Path(entry).name] = label
+            self._name_map[Path(entry).stem] = label
+
+            path = Path(entry).expanduser()
+            looks_like_path = path.suffix.lower() == ".onnx" or "/" in entry or "\\" in entry
+            if path.exists():
+                model_args.append(str(path))
+                self._name_map[str(path)] = label
+                continue
+
+            if looks_like_path:
+                raise FileNotFoundError(f"Wakeword model not found: {path}")
+
+            print("Downloading openWakeWord model files (first run only)...", flush=True)
             try:
-                download_models(model_names=[wakeword])
+                download_models(model_names=[entry])
             except Exception as exc:
                 print(f"Failed to download openWakeWord model files: {exc}", flush=True)
                 print(
@@ -36,11 +57,11 @@ class WakeWordListener:
                     flush=True,
                 )
                 raise
-            wakeword_model_arg = wakeword
+            model_args.append(entry)
 
-        print(f"Loading openWakeWord model: {wakeword}", flush=True)
+        print(f"Loading openWakeWord model(s): {', '.join(wakewords)}", flush=True)
         try:
-            self._model = WakeWordModel(wakeword_models=[wakeword_model_arg], inference_framework="onnx")
+            self._model = WakeWordModel(wakeword_models=model_args, inference_framework="onnx")
         except Exception as exc:
             print(f"Failed to initialize openWakeWord model: {exc}", flush=True)
             print(
@@ -49,14 +70,22 @@ class WakeWordListener:
             )
             raise
 
+    def _label_for(self, key: str) -> str:
+        if key in self._name_map:
+            return self._name_map[key]
+        stem = Path(key).stem
+        return self._name_map.get(stem, key)
+
     def process(self, chunk) -> tuple[str, float, bool]:
         preds = self._model.predict(chunk)
 
         if isinstance(preds, dict) and preds:
-            best_name, best_score = max(preds.items(), key=lambda kv: float(kv[1]))
+            best_key, best_score = max(preds.items(), key=lambda kv: float(kv[1]))
             best_score = float(best_score)
+            best_name = self._label_for(best_key)
         else:
-            best_name, best_score = "wakeword", float(preds) if preds is not None else 0.0
+            best_name = self._label_for(self._wakewords[0]) if self._wakewords else "wakeword"
+            best_score = float(preds) if preds is not None else 0.0
 
         now = time.time()
         triggered = best_score >= self._thresh and (now - self._last_trigger) >= self._cooldown_s
@@ -66,5 +95,6 @@ class WakeWordListener:
         return best_name, best_score, triggered
 
     def mark_handled_now(self) -> None:
-        # Call this after record+transcribe so cooldown starts *after* handling.
+        # Call this after record+transcribe so cooldown starts after handling.
         self._last_trigger = time.time()
+

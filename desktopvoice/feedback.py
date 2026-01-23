@@ -25,7 +25,3 @@ def play_beep(start: bool) -> None:
 
     # Fallback (terminal bell)
     print("\a", end="", flush=True)
-
-def wake_display():
-    if sys.platform == "darwin":
-        subprocess.run(["/usr/bin/caffeinate", "-u", "-t", "1"], check=False)

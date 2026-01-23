@@ -22,7 +22,7 @@ def _normalize(text: str) -> str:
 
 
 OFF_KEYWORDS = ("off", "shutdown", "power down", "turn off", "sleep", "close", "kill", "boss", "fuck", "awesome", "sweet")
-ON_KEYWORDS = ("on", "wake", "start", "turn on", "power on", "open", "wait")
+ON_KEYWORDS = ("on", "wake", "week", "start", "turn on", "power on", "open", "wait")
 
 INTENTS = [
     {
@@ -32,7 +32,7 @@ INTENTS = [
         "off": "script.turn_off_jarvis",
     },
     {
-        "aliases": {"work", "workstation", "desk"},
+        "aliases": {"work", "worth", "workstation"},
         "type": "script",
         "on": "script.wake_workstation",
         "off": "script.sleep_workstation",
