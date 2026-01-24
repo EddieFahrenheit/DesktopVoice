@@ -3,7 +3,7 @@ import os
 from .audio_stream import MicAudioStream
 from .config import load_config
 from .feedback import play_beep
-from .hub_client import send_hub_command
+from .hub_client import send_hub_action
 from .stt import record_command_wav, transcribe_wav
 from .wakeword import WakeWordListener
 
@@ -12,30 +12,26 @@ CHUNK_SECONDS = 0.48
 FRAMES_PER_CHUNK = int(SAMPLE_RATE_HZ * CHUNK_SECONDS)  # ~7680
 
 ZERO_SHOT_ACTIONS = {
-    "main_on": "main on",
-    "kill_main": "main off",
-    "bed_on": "bed on",
-    "kill_bed": "bed off",
-    "down_stairs_on": "downstairs on",
-    "kill_down_stairs": "downstairs off",
-    "wake_work_stay_shin": "work on",
-    "kill_work_stay_shin": "work off",
-    "wake_om_riht": "jarvis on",
-    "kill_om_riht": "jarvis off",
+    "main_on",
+    "kill_main",
+    "bed_on",
+    "kill_bed",
+    "down_stairs_on",
+    "kill_down_stairs",
+    "wake_work_stay_shin",
+    "wake_ahm_riht",
 }
 
 def run_zero_shot_action(name: str, *, cfg) -> None:
-    play_beep(start=True)
-    text = ZERO_SHOT_ACTIONS.get(name)
-    if not text:
+    if name not in ZERO_SHOT_ACTIONS:
         print(f"No zero-shot action configured for '{name}'.", flush=True)
         return
     if not cfg.hub_url:
         print("HUB_URL not set; cannot send zero-shot command.", flush=True)
         return
-    ok, status, body = send_hub_command(
+    ok, status, body = send_hub_action(
         hub_url=cfg.hub_url,
-        text=text,
+        action=name,
         api_key=cfg.hub_api_key,
         timeout_s=cfg.hub_timeout_s,
     )
@@ -78,7 +74,6 @@ def main():
                 chunk = mic.read()[:, 0]  # mono
                 best_name, best_score, triggered = listener.process(chunk)
                 print(f"\rbest={best_name} score={best_score:.3f}  ", end="", flush=True)
-
                 if command_listener is not None:
                     cmd_name, cmd_score, cmd_triggered = command_listener.process(chunk)
                     if cmd_triggered:
