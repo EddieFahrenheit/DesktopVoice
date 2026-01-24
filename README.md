@@ -1,25 +1,22 @@
 ## DesktopVoice
 
-Desktop voice helper that listens for a wake word, records a short command, transcribes it locally, then either:
-- drives Gemini/ChatGPT in Chrome by clicking the mic or voice button, or
-- forwards unmatched text to an optional Hub API for Home Assistant.
+Desktop voice helper that listens for a primary wake word, records a short command, and transcribes locally. It also supports zero-shot command wakewords (ONNX models) that map directly to Home Assistant actions via an optional Hub API.
 
-Audio stays on-device for wake word detection and transcription. Once the mic is clicked, the browser session behaves like normal (Gemini/ChatGPT may send audio to their servers, just like if you clicked the mic yourself).
+Audio stays on-device for wake word detection and transcription.
 
 ### What it does
 
 - Wake word detection (openWakeWord)
+- Optional zero-shot command wakewords (ONNX) -> Hub action
 - Local speech-to-text (faster-whisper)
-- Command routing (exact phrase match + optional Hub forwarding)
-- Chrome automation for Gemini / ChatGPT (Playwright, optional CDP)
 - Optional Hub API for Home Assistant control (FastAPI + MCP)
 
 ### Prereqs
 
 - Python 3.10/3.11
 - A working microphone
-- Google Chrome installed (for CDP or `BROWSER_CHANNEL=chrome`)
 - `ffmpeg` recommended for faster-whisper
+- PortAudio for `sounddevice`
 
 **macOS: upgrade Python if needed**
 
@@ -63,12 +60,6 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-If you plan to use Playwright's bundled Chromium (default when `BROWSER_CHANNEL` is unset), install it:
-
-```bash
-python -m playwright install chromium
-```
-
 ### Configure
 
 Create a per-machine `.env`:
@@ -89,17 +80,15 @@ Core settings:
 - `WHISPER_DEVICE`: `cpu` or `cuda` (if supported).
 - `WHISPER_COMPUTE_TYPE`: e.g. `int8`, `float16`.
 
-Chrome control:
+Zero-shot command wakewords:
 
-- `CHROME_CDP_URL`: set to `http://127.0.0.1:9222` to enable CDP mode.
-- `CHROME_CDP_USER_DATA_DIR`: dedicated Chrome profile directory for CDP (defaults to `PROFILE_DIR`).
-- `CHROME_CDP_PROFILE_DIRECTORY`: usually `Default`.
-- `BROWSER_CHANNEL=chrome`: use your installed Google Chrome (otherwise Playwright's Chromium).
-- `PROFILE_DIR`: persistent profile directory for Playwright-launched Chrome.
+- `COMMAND_WAKEWORDS`: comma-separated list of ONNX paths for command models.
+- `COMMAND_THRESH`: detection threshold for command models.
+- `COMMAND_COOLDOWN`: cooldown seconds for command models.
 
 Hub forwarding (optional):
 
-- `HUB_URL`: Hub API base URL (unmatched commands are POSTed to `/hub/command`).
+- `HUB_URL`: Hub API base URL (actions are POSTed to `/hub/action`).
 - `HUB_API_KEY`: optional header sent as `X-API-Key` (server does not enforce by default).
 - `HUB_TIMEOUT`: request timeout in seconds.
 
@@ -108,6 +97,18 @@ Home Assistant (Hub API host only):
 - `HA_URL`: Home Assistant base URL (example: `http://192.168.122.195:8123`).
 - `HA_TOKEN`: long-lived access token.
 - `HA_LANGUAGE`: language for HA Assist (default `en`).
+
+### Zero-shot model setup
+
+1. Put ONNX models in `models/` (or any path you prefer).
+2. Set `COMMAND_WAKEWORDS` to those model paths.
+3. Ensure each model's filename stem matches an entry in `desktopvoice/hub_routes.py` `ACTION_MAP`.
+4. Keep `ZERO_SHOT_ACTIONS` in `desktopvoice/main.py` aligned with `ACTION_MAP` (if you use the local allowlist).
+
+Example:
+
+- `models/main_on.onnx` -> action key `main_on`
+- `ACTION_MAP["main_on"] = {"domain": "light", "service": "turn_on", ...}`
 
 ### Run
 
@@ -133,44 +134,16 @@ Smoke test:
 
 ```bash
 curl http://192.168.1.160:8000/hub/health
-curl -X POST http://192.168.1.160:8000/hub/command \
+curl -X POST http://192.168.1.160:8000/hub/action \
   -H "Content-Type: application/json" \
-  -d '{"text":"turn on jarvis"}'
+  -d '{"action":"main_on"}'
 ```
 
-Customize hub routing in `desktopvoice/hub_routes.py` (keywords, scripts, lights, switches).
-
-### First run (one-time)
-
-1. Start DesktopVoice.
-2. Say your wake word, then say `google` (or `chat`).
-3. In the Chrome window, log in to https://gemini.google.com/ or https://chatgpt.com/ and allow microphone permission.
-4. After that, say `voice` to click the mic button on the most recent assistant tab.
-
-### Voice commands
-
-Primary phrases (fast + reliable):
-
-- `google`: open/focus Gemini
-- `chat`: open/focus ChatGPT and start voice mode
-- `voice` or `mic`: click the mic / voice button on the most recent assistant tab
-
-There are additional alias phrases to reduce mis-hearings. See `desktopvoice/commands.py` to customize.
-
-### CDP (Chrome DevTools Protocol) notes
-
-If CDP doesn't seem to work, check:
-
-```bash
-curl http://127.0.0.1:9222/json/version
-```
-
-If it fails, Chrome is not listening on the CDP port. Make sure Chrome is fully quit before starting it with CDP flags. A working macOS example is in `.env.example`.
+Customize `ACTION_MAP` in `desktopvoice/hub_routes.py` to match your scripts and entities.
 
 ### Troubleshooting
 
 - **Slow STT:** use a smaller model (`WHISPER_MODEL=tiny` or `base`) and/or reduce `COMMAND_SECONDS`.
 - **Wake word not triggering:** lower `THRESH`, check microphone input, or set `WAKEWORD` to a local `.onnx` file.
-- **Mic button not found:** Gemini/ChatGPT labels change; update the patterns in `desktopvoice/browser.py`.
-- **Google sign-in blocked by automation:** use CDP mode with a dedicated profile and log in once manually.
+- **Zero-shot action not firing:** confirm the ONNX filename stem matches `ACTION_MAP` and the entry exists.
 - **Hub errors:** verify `HA_URL`, `HA_TOKEN`, and that `uvx ha-mcp` runs on the Hub host.

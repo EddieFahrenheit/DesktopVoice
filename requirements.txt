@@ -1,7 +1,6 @@
 numpy
 sounddevice
 openwakeword
-playwright
 python-dotenv
 faster-whisper
 mcp
