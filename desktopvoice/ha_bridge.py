@@ -93,6 +93,11 @@ class HomeAssistantBridge:
             result = await session.list_tools()
         return [tool.name for tool in result.tools]
 
+    async def call_tool(self, name: str, arguments: dict[str, Any] | None = None) -> Any:
+        session = self._require_session()
+        async with self._lock:
+            return await session.call_tool(name, arguments=arguments or {})
+
     async def call_service(
         self,
         *,

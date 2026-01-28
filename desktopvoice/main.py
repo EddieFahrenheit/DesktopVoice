@@ -3,7 +3,7 @@ import os
 from .audio_stream import MicAudioStream
 from .config import load_config
 from .feedback import play_beep
-from .hub_client import send_hub_action
+from .hub_client import send_hub_action, send_hub_llm
 from .stt import record_command_wav, transcribe_wav
 from .wakeword import WakeWordListener
 
@@ -16,10 +16,11 @@ ZERO_SHOT_ACTIONS = {
     "kill_main",
     "bed_on",
     "kill_bed",
-    "down_stairs_on",
+    "ok_home",
     "kill_down_stairs",
     "wake_work_stay_shin",
     "wake_ahm_riht",
+    "hey_luna",
 }
 
 def run_zero_shot_action(name: str, *, cfg) -> None:
@@ -74,6 +75,8 @@ def main():
                 chunk = mic.read()[:, 0]  # mono
                 best_name, best_score, triggered = listener.process(chunk)
                 print(f"\rbest={best_name} score={best_score:.3f}  ", end="", flush=True)
+
+
                 if command_listener is not None:
                     cmd_name, cmd_score, cmd_triggered = command_listener.process(chunk)
                     if cmd_triggered:
@@ -103,6 +106,19 @@ def main():
 
                         if text:
                             print(f'Heard: "{text}"', flush=True)
+                            if cfg.hub_url:
+                                ok, status, body = send_hub_llm(
+                                    hub_url=cfg.hub_url,
+                                    text=text,
+                                    api_key=cfg.hub_api_key,
+                                    timeout_s=cfg.hub_timeout_s,
+                                )
+                                if ok:
+                                    print(f"LLM OK: {body}", flush=True)
+                                else:
+                                    print(f"LLM error ({status}): {body}", flush=True)
+                            else:
+                                print("HUB_URL not set; cannot send LLM command.", flush=True)
                         else:
                             print('Heard: "" (no speech detected)', flush=True)
                     finally:
