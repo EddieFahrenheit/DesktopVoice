@@ -2,7 +2,9 @@ import os
 import tempfile
 import wave
 from .audio_stream import MicAudioStream
+from faster_whisper import WhisperModel
 
+_MODEL_CACHE = {}
 
 def record_command_wav(mic: MicAudioStream, *, sample_rate_hz: int, seconds: float) -> str:
     """
@@ -34,26 +36,19 @@ def record_command_wav(mic: MicAudioStream, *, sample_rate_hz: int, seconds: flo
         wf.writeframes(b"".join(chunks))
     return path
 
+def _get_model(cfg):
+    key = (cfg.whisper_model, cfg.whisper_device, cfg.whisper_compute_type)
+    model = _MODEL_CACHE.get(key)
+    if model is None:
+        model = WhisperModel(
+            cfg.whisper_model,
+            device=cfg.whisper_device,
+            compute_type=cfg.whisper_compute_type,
+        )
+        _MODEL_CACHE[key] = model
+    return model
 
 def transcribe_wav(path: str, *, cfg) -> str:
-    """
-    Transcribe a WAV file to text using `faster-whisper` locally (no audio leaves the machine).
-
-    Note: `faster-whisper` may require `ffmpeg` to be installed on your system, even for WAV input.
-    """
-    try:
-        from faster_whisper import WhisperModel
-    except ModuleNotFoundError:
-        print("Missing dependency: faster-whisper. Run `pip install -r requirements.txt`.")
-        raise
-
-    print(f"Transcribing with faster-whisper (model={cfg.whisper_model}, device={cfg.whisper_device})…", flush=True)
-    model = WhisperModel(cfg.whisper_model, device=cfg.whisper_device, compute_type=cfg.whisper_compute_type)
-    try:
-        segments, _info = model.transcribe(path, beam_size=1, vad_filter=True, language="en")
-        text = " ".join(seg.text.strip() for seg in segments).strip()
-    except Exception as exc:
-        print(f"Transcription failed: {exc}", flush=True)
-        print("Tip: install ffmpeg (macOS: `brew install ffmpeg`, Ubuntu: `sudo apt-get install -y ffmpeg`).", flush=True)
-        raise
-    return text
+    model = _get_model(cfg)
+    segments, _info = model.transcribe(path, beam_size=1, vad_filter=True, language="en")
+    return " ".join(seg.text.strip() for seg in segments).strip()
