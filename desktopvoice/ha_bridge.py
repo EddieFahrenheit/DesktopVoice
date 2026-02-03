@@ -96,7 +96,12 @@ class HomeAssistantBridge:
     async def call_tool(self, name: str, arguments: dict[str, Any] | None = None) -> Any:
         session = self._require_session()
         async with self._lock:
-            return await session.call_tool(name, arguments=arguments or {})
+            result = await session.call_tool(name, arguments=arguments or {})
+        if hasattr(result, "model_dump"):
+            return result.model_dump()
+        if hasattr(result, "dict"):
+            return result.dict()
+        return result
 
     async def call_service(
         self,

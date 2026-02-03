@@ -19,10 +19,9 @@ DEFAULT_OLLAMA_MODEL = "glm-4.7-flash:q4"
 DEFAULT_OLLAMA_TIMEOUT_S = 30.0
 
 DEFAULT_SYSTEM_PROMPT = (
-    "You control Home Assistant using a single tool. "
-    "Return ONLY JSON. If you can fulfill the request, return: "
-    "{\"tool\":\"ha_call_service\",\"arguments\":{\"domain\":\"...\",\"service\":\"...\",\"data\":{...}}}. "
-    "If you cannot, return: {\"tool\":\"none\",\"response\":\"...\"}."
+    "You control Home Assistant via MCP tools. "
+    "Return ONLY JSON: {\"tool\":\"<tool_name>\",\"arguments\":{...}}. "
+    "If no tool fits, return {\"tool\":\"none\",\"response\":\"...\"}."
 )
 
 ALLOWED_DOMAINS = {"light", "switch", "script"}
@@ -284,11 +283,18 @@ async def llm_command(payload: CommandPayload, request: Request) -> CommandResul
     model = os.getenv("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL)
     timeout_s = float(os.getenv("OLLAMA_TIMEOUT", str(DEFAULT_OLLAMA_TIMEOUT_S)))
     system_prompt = os.getenv("OLLAMA_SYSTEM_PROMPT", DEFAULT_SYSTEM_PROMPT)
+
     entities = await ENTITY_CACHE.get(ha)
     if entities:
         entity_context = _format_entity_context(entities, ENTITY_PROMPT_LIMIT)
         if entity_context:
             system_prompt = f"{system_prompt}\n\nAvailable entities:\n{entity_context}"
+
+    available_tools = sorted(await ha.list_tools())
+    if available_tools:
+        system_prompt = (
+            f"{system_prompt}\n\nAvailable tools:\n- " + "\n- ".join(available_tools)
+        )
 
     content = _ollama_chat(
         base_url=base_url,
@@ -305,28 +311,15 @@ async def llm_command(payload: CommandPayload, request: Request) -> CommandResul
         raise HTTPException(status_code=422, detail="LLM did not return valid JSON.")
 
     tool = data.get("tool")
-    if tool != "ha_call_service":
-        raise HTTPException(status_code=422, detail="LLM did not request a HA tool call.")
+    if tool == "none":
+        return CommandResult(ok=True, action=None)
 
     args = data.get("arguments") or {}
-    domain = args.get("domain")
-    service = args.get("service")
-    service_data = args.get("data") or {}
-    allowed_entity_ids = {e["entity_id"] for e in entities}
-    entity_ids = _entity_id_list(service_data.get("entity_id"))
+    if tool not in set(available_tools):
+        raise HTTPException(status_code=422, detail=f"Unknown tool: {tool}")
 
-    if allowed_entity_ids and entity_ids and any(eid not in allowed_entity_ids for eid in entity_ids):
-        raise HTTPException(status_code=403, detail="Unknown entity_id.")
-    if not entity_ids:
-        raise HTTPException(status_code=422, detail="Missing entity_id.")
-    if any(eid not in ALLOWED_ENTITY_IDS for eid in entity_ids):
-        raise HTTPException(status_code=403, detail="Unknown entity_id.")
-    
-    if domain not in ALLOWED_DOMAINS or service not in ALLOWED_SERVICES:
-        raise HTTPException(status_code=403, detail="Requested service not allowed.")
-
-    await ha.call_service(domain=domain, service=service, service_data=service_data)
-    return CommandResult(ok=True, action=f"{domain}.{service}")
+    await ha.call_tool(tool, args)
+    return CommandResult(ok=True, action=tool)
 
 @router.get("/ha/tools")
 async def ha_tools(request: Request):
