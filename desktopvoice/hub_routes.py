@@ -19,8 +19,9 @@ DEFAULT_OLLAMA_MODEL = "glm-4.7-flash:q4"
 DEFAULT_OLLAMA_TIMEOUT_S = 30.0
 
 DEFAULT_SYSTEM_PROMPT = (
-    "You control Home Assistant via MCP tools. "
-    "Return ONLY JSON: {\"tool\":\"<tool_name>\",\"arguments\":{...}}. "
+    "You control Home Assistant and browser tools via MCP. "
+    "Return ONLY JSON: {\"tool\":\"ha:<tool_name>|pw:<tool_name>\",\"arguments\":{...}}. "
+    "Use ha:... for Home Assistant and pw:... for Playwright. "
     "If no tool fits, return {\"tool\":\"none\",\"response\":\"...\"}."
 )
 
@@ -37,6 +38,16 @@ if not DISCOVERY_DOMAINS:
 
 ENTITY_CACHE_TTL_S = float(os.getenv("ENTITY_CACHE_TTL", "300"))
 ENTITY_PROMPT_LIMIT = int(os.getenv("ENTITY_PROMPT_LIMIT", "200"))
+
+async def _namespaced_tool_map(request: Request) -> dict[str, tuple[str, str]]:
+    ha: HomeAssistantBridge = request.app.state.ha
+    out = {f"ha:{name}": ("ha", name) for name in await ha.list_tools()}
+
+    pw = getattr(request.app.state, "pw", None)
+    if pw is not None:
+        for name in await pw.list_tools():
+            out[f"pw:{name}"] = ("pw", name)
+    return out
 
 def _normalize_entity(entry: dict[str, Any]) -> dict[str, str] | None:
     entity_id = entry.get("entity_id")
@@ -290,11 +301,10 @@ async def llm_command(payload: CommandPayload, request: Request) -> CommandResul
         if entity_context:
             system_prompt = f"{system_prompt}\n\nAvailable entities:\n{entity_context}"
 
-    available_tools = sorted(await ha.list_tools())
+    tool_map = await _namespaced_tool_map(request)
+    available_tools = sorted(tool_map.keys())
     if available_tools:
-        system_prompt = (
-            f"{system_prompt}\n\nAvailable tools:\n- " + "\n- ".join(available_tools)
-        )
+        system_prompt = f"{system_prompt}\n\nAvailable tools:\n- " + "\n- ".join(available_tools)
 
     content = _ollama_chat(
         base_url=base_url,
@@ -313,13 +323,43 @@ async def llm_command(payload: CommandPayload, request: Request) -> CommandResul
     tool = data.get("tool")
     if tool == "none":
         return CommandResult(ok=True, action=None)
+    if not isinstance(tool, str) or not tool.strip():
+        raise HTTPException(status_code=422, detail="Missing or invalid tool.")
 
     args = data.get("arguments") or {}
-    if tool not in set(available_tools):
+    if not isinstance(args, dict):
+        raise HTTPException(status_code=422, detail="arguments must be an object.")
+
+    target = tool_map.get(tool)
+    if target is None and ":" not in tool:
+        target = tool_map.get(f"ha:{tool}")  # backward compatibility
+
+    if target is None:
         raise HTTPException(status_code=422, detail=f"Unknown tool: {tool}")
 
-    await ha.call_tool(tool, args)
+    backend, raw_tool = target
+    if backend == "ha":
+        await ha.call_tool(raw_tool, args)
+    else:
+        pw = getattr(request.app.state, "pw", None)
+        if pw is None:
+            raise HTTPException(status_code=503, detail="Playwright MCP is disabled.")
+        await pw.call_tool(raw_tool, args)
+
     return CommandResult(ok=True, action=tool)
+
+@router.get("/tools")
+async def all_tools(request: Request):
+    tool_map = await _namespaced_tool_map(request)
+    return {"tools": sorted(tool_map.keys())}
+
+
+@router.get("/pw/tools")
+async def pw_tools(request: Request):
+    pw = getattr(request.app.state, "pw", None)
+    if pw is None:
+        return {"enabled": False, "tools": []}
+    return {"enabled": True, "tools": await pw.list_tools()}
 
 @router.get("/ha/tools")
 async def ha_tools(request: Request):
